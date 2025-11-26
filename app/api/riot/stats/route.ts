@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Aggregate stats
-    const stats = aggregateYearlyStats(matches, summoner.puuid, summoner.name)
+    const stats = aggregateYearlyStats(matches, summoner.puuid, summoner.riotId)
 
     // Add summoner info from API
     stats.summoner.level = summoner.summonerLevel

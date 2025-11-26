@@ -6,6 +6,13 @@ if (!RIOT_API_KEY) {
   console.warn('RIOT_API_KEY is not set in environment variables')
 }
 
+// Rate limiting configuration
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1000 // Initial retry delay
+
+// TODO: Remove this limit when production API key is obtained
+const MAX_MATCHES_TO_FETCH = 50 // Temporary limit for dev API key
+
 // Base URLs for different API endpoints
 const getBaseUrl = (region: string) => `https://${region}.api.riotgames.com`
 const getRegionalUrl = (region: string) => {
@@ -26,18 +33,47 @@ const getRegionalUrl = (region: string) => {
   return `https://${regionalMapping[region] || 'americas'}.api.riotgames.com`
 }
 
-async function riotFetch(url: string) {
-  const response = await fetch(url, {
-    headers: {
-      'X-Riot-Token': RIOT_API_KEY || '',
-    },
-  })
+// Simple sleep utility
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-  if (!response.ok) {
-    throw new Error(`Riot API error: ${response.status} ${response.statusText}`)
+async function riotFetch(url: string, retries = 0): Promise<any> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'X-Riot-Token': RIOT_API_KEY || '',
+      },
+    })
+
+    // Handle rate limiting
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After')
+      const delayMs = retryAfter ? parseInt(retryAfter) * 1000 : RETRY_DELAY_MS * Math.pow(2, retries)
+
+      if (retries < MAX_RETRIES) {
+        console.log(`[Riot API] Rate limited. Retrying after ${delayMs}ms (attempt ${retries + 1}/${MAX_RETRIES})`)
+        await sleep(delayMs)
+        return riotFetch(url, retries + 1)
+      }
+
+      throw new Error(`Riot API error: 429 Too Many Requests (exceeded ${MAX_RETRIES} retries)`)
+    }
+
+    if (!response.ok) {
+      throw new Error(`Riot API error: ${response.status} ${response.statusText}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    // Retry on network errors
+    if (retries < MAX_RETRIES && error instanceof TypeError) {
+      const delayMs = RETRY_DELAY_MS * Math.pow(2, retries)
+      console.log(`[Riot API] Network error. Retrying after ${delayMs}ms (attempt ${retries + 1}/${MAX_RETRIES})`)
+      await sleep(delayMs)
+      return riotFetch(url, retries + 1)
+    }
+
+    throw error
   }
-
-  return response.json()
 }
 
 export async function getSummonerByRiotId(region: string, gameName: string, tagLine: string) {
@@ -50,7 +86,15 @@ export async function getSummonerByRiotId(region: string, gameName: string, tagL
   const account = await riotFetch(accountUrl)
 
   // Then get summoner data using PUUID
-  return getSummonerByPuuid(region, account.puuid)
+  const summoner = await getSummonerByPuuid(region, account.puuid)
+
+  // Add the Riot ID to the summoner data
+  return {
+    ...summoner,
+    gameName: account.gameName,
+    tagLine: account.tagLine,
+    riotId: `${account.gameName}#${account.tagLine}`
+  }
 }
 
 export async function getSummonerByName(region: string, summonerName: string) {
@@ -114,7 +158,7 @@ export async function getMatchesInDateRange(
   startDate: Date,
   endDate: Date
 ) {
-  const matchIds = await getMatchIdsByPuuid(region, puuid, 100)
+  const matchIds = await getMatchIdsByPuuid(region, puuid, MAX_MATCHES_TO_FETCH)
   const matches = []
 
   for (const matchId of matchIds) {

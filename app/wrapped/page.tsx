@@ -84,7 +84,7 @@ export default function WrappedPage() {
           <h1 className="text-5xl font-bold bg-gradient-to-r from-tft-gold to-tft-lightBlue bg-clip-text text-transparent">
             {stats.summoner.name}&apos;s Year in TFT
           </h1>
-          <p className="text-xl text-gray-300">Your 2024 TFT Journey</p>
+          <p className="text-xl text-gray-300">Your 2025 TFT Journey</p>
         </div>
 
         {/* Overview Stats */}
@@ -139,6 +139,32 @@ export default function WrappedPage() {
               <p className="text-gray-400">Average Game Length</p>
               <p className="text-xl font-semibold">{stats.playstyle.averageGameLength} minutes</p>
             </div>
+          </div>
+        </section>
+
+        {/* Favorite Champions */}
+        <section className="bg-white/5 rounded-xl p-8 border border-white/10">
+          <h2 className="text-3xl font-bold mb-6 text-tft-purple">Your Favorite Champions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {stats.playstyle.favoriteUnits.map((unit, index) => (
+              <div
+                key={unit.unitId}
+                className="bg-white/5 rounded-lg p-4 border border-white/10 hover:border-tft-purple/50 transition-all"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-lg font-semibold">{unit.name}</h3>
+                  <span className="text-tft-gold text-sm">#{index + 1}</span>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <p className="text-gray-400">
+                    Played: <span className="text-white font-semibold">{unit.timesPlayed}</span> times
+                  </p>
+                  <p className="text-gray-400">
+                    Avg Place: <span className="text-white font-semibold">{unit.averagePlacement.toFixed(1)}</span>
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
