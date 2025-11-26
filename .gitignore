@@ -24,10 +24,10 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
 
 # Claude Code local settings
 .claude/settings.local.json
-.env
 
 # vercel
 .vercel
