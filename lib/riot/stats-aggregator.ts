@@ -31,9 +31,19 @@ export function aggregateYearlyStats(
   const rankedWinCount = rankedPlacements.filter(p => p === 1).length
   const rankedTop4Count = rankedPlacements.filter(p => p <= 4).length
 
-  // Aggregate unit stats
-  const unitCounts = new Map<string, { count: number; placements: number[] }>()
-  playerMatches.forEach(({ participant }) => {
+  // Aggregate unit stats grouped by set using match.info.tft_set_number
+  const unitCountsBySet = new Map<string, Map<string, { count: number; placements: number[] }>>()
+
+  playerMatches.forEach(({ match, participant }) => {
+    const setNumber = match.info.tft_set_number.toString()
+
+    // Get or create the map for this set
+    if (!unitCountsBySet.has(setNumber)) {
+      unitCountsBySet.set(setNumber, new Map())
+    }
+    const unitCounts = unitCountsBySet.get(setNumber)!
+
+    // Count units for this set
     participant.units.forEach(unit => {
       const existing = unitCounts.get(unit.character_id) || { count: 0, placements: [] }
       existing.count++
@@ -42,15 +52,20 @@ export function aggregateYearlyStats(
     })
   })
 
-  const favoriteUnits: UnitStats[] = Array.from(unitCounts.entries())
-    .map(([unitId, data]) => ({
-      unitId,
-      name: unitId.split('_').pop() || unitId,
-      timesPlayed: data.count,
-      averagePlacement: data.placements.reduce((a, b) => a + b, 0) / data.placements.length,
-    }))
+  // Get top 5 from each set and combine
+  const favoriteUnits: UnitStats[] = Array.from(unitCountsBySet.entries())
+    .flatMap(([setNumber, unitCounts]) => {
+      return Array.from(unitCounts.entries())
+        .map(([unitId, data]) => ({
+          unitId,
+          name: unitId.split('_').pop() || unitId,
+          timesPlayed: data.count,
+          averagePlacement: data.placements.reduce((a, b) => a + b, 0) / data.placements.length,
+        }))
+        .sort((a, b) => b.timesPlayed - a.timesPlayed)
+        .slice(0, 5)
+    })
     .sort((a, b) => b.timesPlayed - a.timesPlayed)
-    .slice(0, 5)
 
   // Aggregate trait stats
   const traitCounts = new Map<string, { count: number; placements: number[] }>()
