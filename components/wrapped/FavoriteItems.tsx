@@ -1,19 +1,34 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import Image from 'next/image'
+import { useEffect, useState } from 'react'
 import type { ItemStats } from '@/types/stats'
+import { getTftItemImage, fetchTftItemData } from '@/lib/dataDragon'
 
 interface FavoriteItemsProps {
   items: ItemStats[]
 }
 
 export default function FavoriteItems({ items }: FavoriteItemsProps) {
+  const [itemData, setItemData] = useState<Record<string, { name: string }> | null>(null)
+
+  useEffect(() => {
+    fetchTftItemData()
+      .then(data => setItemData(data))
+      .catch(err => console.error('Failed to fetch item data:', err))
+  }, [])
+
   if (!items || items.length === 0) {
     return null
   }
 
-  // Format item name for display (remove TFT_Item_ prefix and format)
-  const formatItemName = (itemName: string): string => {
+  // Get actual item name from Data Dragon data, fallback to formatted name
+  const getItemName = (itemName: string): string => {
+    if (itemData && itemData[itemName]) {
+      return itemData[itemName].name
+    }
+    // Fallback to formatted name
     return itemName
       .replace('TFT_Item_', '')
       .replace('TFT', '')
@@ -37,23 +52,39 @@ export default function FavoriteItems({ items }: FavoriteItemsProps) {
             transition={{ delay: index * 0.1, duration: 0.5 }}
             className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-6 border border-white/20 hover:border-tft-gold/50 transition-all hover:scale-105 transform"
           >
-            {/* Rank Badge */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="bg-tft-gold/20 text-tft-gold rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
-                #{index + 1}
+            <div className="flex items-start gap-4 mb-4">
+              {/* Item Image */}
+              <div className="relative w-12 h-12 flex-shrink-0 rounded-lg border-2 border-tft-gold/30 overflow-hidden">
+                <Image
+                  src={getTftItemImage(item.itemName)}
+                  alt={getItemName(item.itemName)}
+                  width={48}
+                  height={48}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
               </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Avg. Placement</p>
-                <p className="text-lg font-bold text-tft-lightBlue">
-                  {item.averagePlacement.toFixed(1)}
-                </p>
+
+              <div className="flex-1">
+                {/* Rank Badge */}
+                <div className="flex items-start justify-between mb-2">
+                  <div className="bg-tft-gold/20 text-tft-gold rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+                    #{index + 1}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400">Avg. Placement</p>
+                    <p className="text-lg font-bold text-tft-lightBlue">
+                      {item.averagePlacement.toFixed(1)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Item Name */}
+                <h3 className="text-lg font-bold text-white">
+                  {getItemName(item.itemName)}
+                </h3>
               </div>
             </div>
-
-            {/* Item Name */}
-            <h3 className="text-xl font-bold mb-2 text-white">
-              {formatItemName(item.itemName)}
-            </h3>
 
             {/* Usage Stats */}
             <div className="flex items-center gap-2 text-gray-300">
@@ -88,7 +119,7 @@ export default function FavoriteItems({ items }: FavoriteItemsProps) {
           <div>
             <p className="text-gray-400 text-sm mb-1">Most Used</p>
             <p className="text-lg font-bold text-tft-gold">
-              {formatItemName(items[0].itemName)}
+              {getItemName(items[0].itemName)}
             </p>
           </div>
           <div>
@@ -100,7 +131,7 @@ export default function FavoriteItems({ items }: FavoriteItemsProps) {
           <div className="col-span-2 md:col-span-1">
             <p className="text-gray-400 text-sm mb-1">Best Performance</p>
             <p className="text-lg font-bold text-tft-purple">
-              {formatItemName(items.reduce((best, item) =>
+              {getItemName(items.reduce((best, item) =>
                 item.averagePlacement < best.averagePlacement ? item : best
               ).itemName)}
             </p>
