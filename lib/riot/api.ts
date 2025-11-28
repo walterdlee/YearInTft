@@ -6,6 +6,10 @@ import {
   cacheSummoner,
   getCachedMatchIds,
   cacheMatchIds,
+  getCachedRiotAccount,
+  cacheRiotAccount,
+  getCachedLeagueEntries,
+  cacheLeagueEntries,
 } from '../db/cache'
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY
@@ -20,6 +24,61 @@ const RETRY_DELAY_MS = 1000 // Initial retry delay
 
 // TODO: Remove this limit when production API key is obtained
 const MAX_MATCHES_TO_FETCH = 50 // Temporary limit for dev API key
+
+// ============================================
+// REQUEST DEDUPLICATION
+// ============================================
+// Prevents multiple parallel requests for the same resource
+// by caching in-flight promises and sharing their results
+
+interface PendingRequest<T> {
+  promise: Promise<T>
+  timestamp: number
+}
+
+const pendingRequests = new Map<string, PendingRequest<any>>()
+const PENDING_REQUEST_TTL = 30000 // 30 seconds
+
+function createRequestKey(type: string, ...args: string[]): string {
+  return `${type}:${args.join(':')}`
+}
+
+async function deduplicateRequest<T>(
+  key: string,
+  fetchFn: () => Promise<T>
+): Promise<T> {
+  // Check if there's already a pending request for this key
+  const pending = pendingRequests.get(key)
+
+  if (pending) {
+    const age = Date.now() - pending.timestamp
+    if (age < PENDING_REQUEST_TTL) {
+      console.log(`[Dedup] Reusing in-flight request: ${key}`)
+      return pending.promise
+    } else {
+      // Stale pending request, remove it
+      pendingRequests.delete(key)
+    }
+  }
+
+  // No pending request, create a new one
+  console.log(`[Dedup] Creating new request: ${key}`)
+  const promise = fetchFn()
+
+  // Store the promise
+  pendingRequests.set(key, {
+    promise,
+    timestamp: Date.now(),
+  })
+
+  // Clean up after the request completes (success or failure)
+  promise
+    .finally(() => {
+      pendingRequests.delete(key)
+    })
+
+  return promise
+}
 
 // Base URLs for different API endpoints
 const getBaseUrl = (region: string) => `https://${region}.api.riotgames.com`
@@ -85,29 +144,45 @@ async function riotFetch(url: string, retries = 0): Promise<any> {
 }
 
 export async function getSummonerByRiotId(region: string, gameName: string, tagLine: string) {
-  // Use Account API to get PUUID from Riot ID
-  const accountUrl = `${getRegionalUrl(region)}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`
+  const key = createRequestKey('riot-account', region, gameName, tagLine)
 
-  console.log(`[Riot API] Looking up: ${gameName}#${tagLine} in region ${region}`)
-  console.log(`[Riot API] Account URL: ${accountUrl}`)
+  return deduplicateRequest(key, async () => {
+    // Check cache first for Riot ID -> PUUID mapping
+    const cachedAccount = await getCachedRiotAccount(region, gameName, tagLine)
 
-  const account = await riotFetch(accountUrl)
+    let account: any
 
-  // Then get summoner data using PUUID (will use cache if available)
-  const summoner = await getSummonerByPuuid(region, account.puuid)
+    if (cachedAccount) {
+      account = cachedAccount
+    } else {
+      // Cache miss - fetch from Account API
+      const accountUrl = `${getRegionalUrl(region)}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`
 
-  // Add the Riot ID to the summoner data
-  const result = {
-    ...summoner,
-    gameName: account.gameName,
-    tagLine: account.tagLine,
-    riotId: `${account.gameName}#${account.tagLine}`
-  }
+      console.log(`[Riot API] Looking up: ${gameName}#${tagLine} in region ${region}`)
+      console.log(`[Riot API] Account URL: ${accountUrl}`)
 
-  // Update cache with Riot ID info
-  await cacheSummoner(region, account.puuid, summoner, account.gameName, account.tagLine)
+      account = await riotFetch(accountUrl)
 
-  return result
+      // Store in cache for future requests
+      await cacheRiotAccount(region, account.gameName, account.tagLine, account.puuid, account)
+    }
+
+    // Then get summoner data using PUUID (will use cache if available)
+    const summoner = await getSummonerByPuuid(region, account.puuid)
+
+    // Add the Riot ID to the summoner data
+    const result = {
+      ...summoner,
+      gameName: account.gameName,
+      tagLine: account.tagLine,
+      riotId: `${account.gameName}#${account.tagLine}`
+    }
+
+    // Update summoner cache with Riot ID info
+    await cacheSummoner(region, account.puuid, summoner, account.gameName, account.tagLine)
+
+    return result
+  })
 }
 
 export async function getSummonerByName(region: string, summonerName: string) {
@@ -145,59 +220,89 @@ export async function getSummonerByName(region: string, summonerName: string) {
 }
 
 export async function getSummonerByPuuid(region: string, puuid: string) {
-  // Check cache first
-  const cached = await getCachedSummoner(region, puuid)
-  if (cached) {
-    return cached
-  }
+  const key = createRequestKey('summoner', region, puuid)
 
-  // Cache miss - fetch from API
-  const url = `${getBaseUrl(region)}/tft/summoner/v1/summoners/by-puuid/${puuid}`
-  const summoner = await riotFetch(url)
+  return deduplicateRequest(key, async () => {
+    // Check cache first
+    const cached = await getCachedSummoner(region, puuid)
+    if (cached) {
+      return cached
+    }
 
-  // Store in cache for future requests
-  await cacheSummoner(region, puuid, summoner)
+    // Cache miss - fetch from API
+    // Use LoL summoner endpoint instead of TFT - summoner IDs are shared across games
+    const url = `${getBaseUrl(region)}/lol/summoner/v4/summoners/by-puuid/${puuid}`
+    const summoner = await riotFetch(url)
 
-  return summoner
+    // Store in cache for future requests
+    await cacheSummoner(region, puuid, summoner)
+
+    return summoner
+  })
 }
 
 export async function getMatchIdsByPuuid(region: string, puuid: string, count = 20) {
-  // Check cache first (short TTL since new matches happen frequently)
-  const cached = await getCachedMatchIds(region, puuid)
-  if (cached && cached.length >= count) {
-    return cached.slice(0, count)
-  }
+  const key = createRequestKey('match-ids', region, puuid, count.toString())
 
-  // Cache miss or insufficient cached IDs - fetch from API
-  const url = `${getRegionalUrl(region)}/tft/match/v1/matches/by-puuid/${puuid}/ids?count=${count}`
-  const matchIds = await riotFetch(url)
+  return deduplicateRequest(key, async () => {
+    // Check cache first (1 hour TTL for year-in-review use case)
+    const cached = await getCachedMatchIds(region, puuid)
+    if (cached && cached.length >= count) {
+      return cached.slice(0, count)
+    }
 
-  // Store in cache for future requests
-  await cacheMatchIds(region, puuid, matchIds)
+    // Cache miss or insufficient cached IDs - fetch from API
+    const url = `${getRegionalUrl(region)}/tft/match/v1/matches/by-puuid/${puuid}/ids?count=${count}`
+    const matchIds = await riotFetch(url)
 
-  return matchIds
+    // Store in cache for future requests
+    await cacheMatchIds(region, puuid, matchIds)
+
+    return matchIds
+  })
 }
 
 export async function getMatchById(region: string, matchId: string) {
-  // Check cache first - matches never change, so this is永久 cached
-  const cached = await getCachedMatch(region, matchId)
-  if (cached) {
-    return cached
-  }
+  const key = createRequestKey('match', region, matchId)
 
-  // Cache miss - fetch from API
-  const url = `${getRegionalUrl(region)}/tft/match/v1/matches/${matchId}`
-  const match = await riotFetch(url)
+  return deduplicateRequest(key, async () => {
+    // Check cache first - matches never change, so this is permanently cached
+    const cached = await getCachedMatch(region, matchId)
+    if (cached) {
+      return cached
+    }
 
-  // Store in cache forever (matches are immutable)
-  await cacheMatch(region, matchId, match)
+    // Cache miss - fetch from API
+    const url = `${getRegionalUrl(region)}/tft/match/v1/matches/${matchId}`
+    const match = await riotFetch(url)
 
-  return match
+    // Store in cache forever (matches are immutable)
+    await cacheMatch(region, matchId, match)
+
+    return match
+  })
 }
 
-export async function getLeagueEntries(region: string, summonerId: string) {
-  const url = `${getBaseUrl(region)}/tft/league/v1/entries/by-summoner/${summonerId}`
-  return riotFetch(url)
+export async function getLeagueEntries(region: string, puuid: string) {
+  const key = createRequestKey('league-entries', region, puuid)
+
+  return deduplicateRequest(key, async () => {
+    // Check cache first
+    const cached = await getCachedLeagueEntries(region, puuid)
+    if (cached) {
+      return cached
+    }
+
+    // Cache miss - fetch from API
+    // Use the PUUID endpoint for TFT league entries
+    const url = `${getBaseUrl(region)}/tft/league/v1/by-puuid/${puuid}`
+    const leagueEntries = await riotFetch(url)
+
+    // Store in cache for future requests
+    await cacheLeagueEntries(region, puuid, leagueEntries)
+
+    return leagueEntries
+  })
 }
 
 // Helper to get matches within a date range

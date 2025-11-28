@@ -1,10 +1,11 @@
-import type { Match, Participant } from '@/types/riot'
+import type { Match, Participant, LeagueEntry } from '@/types/riot'
 import type { YearlyStats, CompStats, UnitStats, TraitStats, ItemStats } from '@/types/stats'
 
 export function aggregateYearlyStats(
   matches: Match[],
   puuid: string,
-  summonerName: string
+  summonerName: string,
+  leagueEntries: LeagueEntry[] = []
 ): YearlyStats {
   // Filter matches for the specific player
   const playerMatches = matches.map(match => ({
@@ -15,11 +16,20 @@ export function aggregateYearlyStats(
   const totalGames = playerMatches.length
   const totalGameTime = playerMatches.reduce((sum, m) => sum + m.match.info.game_length, 0)
 
+  // Separate ranked games (queue_id 1100 or 1160)
+  const rankedMatches = playerMatches.filter(m => m.match.info.queue_id === 1100 || m.match.info.queue_id === 1160)
+  const rankedGames = rankedMatches.length
+
   // Calculate placements
   const placements = playerMatches.map(m => m.participant.placement)
   const averagePlacement = placements.reduce((a, b) => a + b, 0) / totalGames
   const top4Count = placements.filter(p => p <= 4).length
   const winCount = placements.filter(p => p === 1).length
+
+  // Calculate ranked-specific stats
+  const rankedPlacements = rankedMatches.map(m => m.participant.placement)
+  const rankedWinCount = rankedPlacements.filter(p => p === 1).length
+  const rankedTop4Count = rankedPlacements.filter(p => p <= 4).length
 
   // Aggregate unit stats
   const unitCounts = new Map<string, { count: number; placements: number[] }>()
@@ -97,6 +107,29 @@ export function aggregateYearlyStats(
   })
   const mostPlayedSet = Array.from(setCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 0
 
+  // Extract TFT ranked data from league entries
+  const tftRankedEntry = leagueEntries.find(entry => entry.queueType === 'RANKED_TFT')
+
+  const currentRank = tftRankedEntry
+    ? {
+        tier: tftRankedEntry.tier,
+        division: tftRankedEntry.rank,
+        lp: tftRankedEntry.leaguePoints,
+      }
+    : {
+        tier: rankedGames > 0 ? 'RANKED' : 'UNRANKED',
+        division: rankedGames > 0 ? `${rankedGames} games` : '',
+        lp: 0
+      }
+
+  // For now, use current rank as peak rank
+  // TODO: Track peak rank over time through match history or separate API calls
+  const peakRank = currentRank
+
+  // Use ranked game stats from match history
+  const rankedWins = tftRankedEntry?.wins || rankedWinCount
+  const rankedLosses = tftRankedEntry?.losses || (rankedGames - rankedWinCount)
+
   return {
     summoner: {
       name: summonerName,
@@ -112,11 +145,11 @@ export function aggregateYearlyStats(
     },
     favoriteComps: [], // TODO: Implement comp detection logic
     rankedPerformance: {
-      currentRank: { tier: 'UNRANKED', division: '', lp: 0 },
-      peakRank: { tier: 'UNRANKED', division: '', lp: 0 },
+      currentRank,
+      peakRank,
       progression: [],
-      totalWins: winCount,
-      totalLosses: totalGames - winCount,
+      totalWins: rankedWins,
+      totalLosses: rankedLosses,
     },
     playstyle: {
       averageGameLength: Math.round(totalGameTime / totalGames / 60),

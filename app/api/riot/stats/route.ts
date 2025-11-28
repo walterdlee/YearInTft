@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSummonerByName, getMatchesInDateRange } from '@/lib/riot/api'
+import { getSummonerByName, getMatchesInDateRange, getLeagueEntries } from '@/lib/riot/api'
 import { aggregateYearlyStats } from '@/lib/riot/stats-aggregator'
 
 export async function GET(request: NextRequest) {
@@ -38,8 +38,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Fetch league entries (ranked data) using PUUID
+    let leagueEntries = []
+    try {
+      leagueEntries = await getLeagueEntries(region, summoner.puuid)
+    } catch (error) {
+      console.warn('Failed to fetch league entries:', error)
+      // Continue without ranked data - will show as unranked
+    }
+
     // Aggregate stats
-    const stats = aggregateYearlyStats(matches, summoner.puuid, summoner.riotId)
+    const stats = aggregateYearlyStats(matches, summoner.puuid, summoner.riotId, leagueEntries)
 
     // Add summoner info from API
     stats.summoner.level = summoner.summonerLevel
