@@ -3,7 +3,9 @@ import { sql, isDatabaseAvailable } from './client'
 // Cache TTL settings (in milliseconds)
 const TTL = {
   SUMMONER: 24 * 60 * 60 * 1000, // 24 hours
-  MATCH_IDS: 5 * 60 * 1000, // 5 minutes
+  MATCH_IDS: 60 * 60 * 1000, // 1 hour (increased from 5 minutes for year-in-review)
+  RIOT_ACCOUNT: 7 * 24 * 60 * 60 * 1000, // 7 days (Riot IDs rarely change)
+  LEAGUE_ENTRIES: 60 * 60 * 1000, // 1 hour (ranked data changes frequently)
   // Matches never expire (games are immutable)
 }
 
@@ -178,6 +180,145 @@ export async function cacheMatchIds(region: string, puuid: string, matchIds: str
 }
 
 // ============================================
+// RIOT ACCOUNT CACHING
+// ============================================
+
+export async function getCachedRiotAccount(
+  region: string,
+  gameName: string,
+  tagLine: string
+): Promise<any | null> {
+  if (!isDatabaseAvailable()) return null
+
+  try {
+    const result = await sql`
+      SELECT puuid, account_data, updated_at
+      FROM riot_accounts
+      WHERE game_name = ${gameName}
+        AND tag_line = ${tagLine}
+        AND region = ${region}
+    `
+
+    if (result.rows && result.rows.length > 0) {
+      const cached = result.rows[0]
+      const age = Date.now() - new Date(cached.updated_at).getTime()
+
+      // Check if cache is still valid
+      if (age < TTL.RIOT_ACCOUNT) {
+        console.log(
+          `[Cache] Hit: Riot Account ${gameName}#${tagLine} (age: ${Math.round(age / 1000 / 60 / 60)}h)`
+        )
+        return {
+          puuid: cached.puuid,
+          ...cached.account_data,
+        }
+      } else {
+        console.log(`[Cache] Expired: Riot Account ${gameName}#${tagLine}`)
+      }
+    } else {
+      console.log(`[Cache] Miss: Riot Account ${gameName}#${tagLine}`)
+    }
+
+    return null
+  } catch (error) {
+    console.error(`[Cache] Error retrieving Riot Account ${gameName}#${tagLine}:`, error)
+    return null
+  }
+}
+
+export async function cacheRiotAccount(
+  region: string,
+  gameName: string,
+  tagLine: string,
+  puuid: string,
+  accountData: any
+): Promise<void> {
+  if (!isDatabaseAvailable()) return
+
+  try {
+    await sql`
+      INSERT INTO riot_accounts (game_name, tag_line, region, puuid, account_data, updated_at)
+      VALUES (
+        ${gameName},
+        ${tagLine},
+        ${region},
+        ${puuid},
+        ${JSON.stringify(accountData)},
+        NOW()
+      )
+      ON CONFLICT (game_name, tag_line, region)
+      DO UPDATE SET
+        puuid = ${puuid},
+        account_data = ${JSON.stringify(accountData)},
+        updated_at = NOW()
+    `
+
+    console.log(`[Cache] Stored: Riot Account ${gameName}#${tagLine} -> ${puuid}`)
+  } catch (error) {
+    console.error(`[Cache] Error storing Riot Account ${gameName}#${tagLine}:`, error)
+  }
+}
+
+// ============================================
+// LEAGUE ENTRIES CACHING
+// ============================================
+
+export async function getCachedLeagueEntries(region: string, summonerId: string): Promise<any[] | null> {
+  if (!isDatabaseAvailable()) return null
+
+  try {
+    const result = await sql`
+      SELECT league_data, updated_at
+      FROM league_entries
+      WHERE summoner_id = ${summonerId} AND region = ${region}
+    `
+
+    if (result.rows && result.rows.length > 0) {
+      const cached = result.rows[0]
+      const age = Date.now() - new Date(cached.updated_at).getTime()
+
+      // Check if cache is still valid
+      if (age < TTL.LEAGUE_ENTRIES) {
+        console.log(`[Cache] Hit: League Entries for ${summonerId} (age: ${Math.round(age / 1000 / 60)}m)`)
+        return cached.league_data as any[]
+      } else {
+        console.log(`[Cache] Expired: League Entries for ${summonerId}`)
+      }
+    } else {
+      console.log(`[Cache] Miss: League Entries for ${summonerId}`)
+    }
+
+    return null
+  } catch (error) {
+    console.error(`[Cache] Error retrieving league entries for ${summonerId}:`, error)
+    return null
+  }
+}
+
+export async function cacheLeagueEntries(
+  region: string,
+  summonerId: string,
+  leagueData: any[]
+): Promise<void> {
+  if (!isDatabaseAvailable()) return
+
+  try {
+    await sql`
+      INSERT INTO league_entries (summoner_id, region, league_data, updated_at)
+      VALUES (${summonerId}, ${region}, ${JSON.stringify(leagueData)}, NOW())
+      ON CONFLICT (summoner_id, region)
+      DO UPDATE SET
+        league_data = ${JSON.stringify(leagueData)},
+        updated_at = NOW()
+    `
+
+    console.log(`[Cache] Stored: League Entries for ${summonerId}`)
+  } catch (error) {
+    console.error(`[Cache] Error storing league entries for ${summonerId}:`, error)
+  }
+}
+
+// ============================================
 // CACHE CLEANUP
 // ============================================
 
@@ -185,12 +326,12 @@ export async function cleanupExpiredCache(): Promise<void> {
   if (!isDatabaseAvailable()) return
 
   try {
-    // Clean up old match ID lists (older than 1 hour)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    // Clean up old match ID lists (older than 2 hours)
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 
     const result = await sql`
       DELETE FROM match_id_lists
-      WHERE created_at < ${oneHourAgo}
+      WHERE created_at < ${twoHoursAgo}
     `
 
     if (result.rowCount && result.rowCount > 0) {

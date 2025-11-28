@@ -27,8 +27,9 @@ export async function runMigrations() {
       const statement = statements[i]
       console.log(`[DB] Executing statement ${i + 1}/${statements.length}...`)
       try {
-        // Use raw query for DDL statements
-        const result = await sql.unsafe(statement)
+        // Use query for DDL statements - Vercel Postgres doesn't need .unsafe
+        // We use the sql`` template tag but pass the raw SQL string
+        await sql.query(statement)
         console.log(`[DB] ✓ Statement ${i + 1} executed successfully`)
       } catch (err) {
         console.error(`[DB] ✗ Statement ${i + 1} failed:`, err)

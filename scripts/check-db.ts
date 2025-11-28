@@ -18,8 +18,8 @@ async function main() {
       WHERE table_schema = 'public'
     `
 
-    console.log('Tables found:', result.length)
-    result.forEach((row: any) => {
+    console.log('Tables found:', result.rows.length)
+    result.rows.forEach((row: any) => {
       console.log('  -', row.table_name)
     })
 
