@@ -36,6 +36,7 @@ export default function Home() {
               onChange={(e) => setSummonerName(e.target.value)}
               placeholder="Enter your Riot ID (e.g., GameName#NA1)"
               className="w-full px-6 py-4 text-lg rounded-lg bg-white/10 border border-white/20 focus:border-tft-gold focus:outline-none focus:ring-2 focus:ring-tft-gold/50 transition-all"
+              autoFocus
             />
             <p className="text-sm text-gray-400 text-left">
               Use your Riot ID format: GameName#TAG (e.g., Doublelift#NA1)
