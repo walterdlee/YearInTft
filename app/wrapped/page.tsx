@@ -1,11 +1,11 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import type { YearlyStats } from '@/types/stats'
 import FavoriteItems from '@/components/wrapped/FavoriteItems'
 
-export default function WrappedPage() {
+function WrappedContent() {
   const searchParams = useSearchParams()
   const summoner = searchParams.get('summoner')
   const region = searchParams.get('region')
@@ -192,5 +192,22 @@ function StatCard({ title, value, subtitle }: { title: string; value: string | n
       <p className="text-4xl font-bold mb-1">{value}</p>
       <p className="text-gray-400 text-sm">{subtitle}</p>
     </div>
+  )
+}
+
+export default function WrappedPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-tft-gold mx-auto"></div>
+            <p className="text-xl">Loading...</p>
+          </div>
+        </main>
+      }
+    >
+      <WrappedContent />
+    </Suspense>
   )
 }

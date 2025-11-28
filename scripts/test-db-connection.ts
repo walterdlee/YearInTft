@@ -15,12 +15,12 @@ async function main() {
 
     // Try creating a simple test table
     console.log('Creating test table...')
-    await sql.unsafe(`
+    await sql`
       CREATE TABLE IF NOT EXISTS test_table (
         id SERIAL PRIMARY KEY,
         name TEXT
       )
-    `)
+    `
     console.log('✓ Test table created')
 
     // Check if it exists
@@ -29,7 +29,7 @@ async function main() {
       FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = 'test_table'
     `
-    console.log('Test table found:', result.length > 0 ? 'YES' : 'NO')
+    console.log('Test table found:', result.rows.length > 0 ? 'YES' : 'NO')
 
     // List all tables
     const allTables = await sql`
@@ -37,8 +37,8 @@ async function main() {
       FROM information_schema.tables
       WHERE table_schema = 'public'
     `
-    console.log('Total tables:', allTables.length)
-    allTables.forEach((row: any) => console.log('  -', row.table_name))
+    console.log('Total tables:', allTables.rows.length)
+    allTables.rows.forEach((row: any) => console.log('  -', row.table_name))
 
     process.exit(0)
   } catch (error) {

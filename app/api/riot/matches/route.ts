@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch detailed match data for each match ID
     const matches = await Promise.all(
-      matchIds.map(matchId => getMatchById(region, matchId))
+      matchIds.map((matchId: string) => getMatchById(region, matchId))
     )
 
     return NextResponse.json({ matches, count: matches.length })
