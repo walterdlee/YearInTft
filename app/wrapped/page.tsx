@@ -2,8 +2,10 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
+import Image from 'next/image'
 import type { YearlyStats } from '@/types/stats'
 import FavoriteItems from '@/components/wrapped/FavoriteItems'
+import { getTftChampionImage } from '@/lib/dataDragon'
 
 function WrappedContent() {
   const searchParams = useSearchParams()
@@ -143,29 +145,70 @@ function WrappedContent() {
         </section>
 
         {/* Favorite Champions */}
-        <section className="bg-white/5 rounded-xl p-8 border border-white/10">
-          <h2 className="text-3xl font-bold mb-6 text-tft-purple">Your Favorite Champions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stats.playstyle.favoriteUnits.map((unit, index) => (
-              <div
-                key={unit.unitId}
-                className="bg-white/5 rounded-lg p-4 border border-white/10 hover:border-tft-purple/50 transition-all"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-semibold">{unit.name}</h3>
-                  <span className="text-tft-gold text-sm">#{index + 1}</span>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <p className="text-gray-400">
-                    Played: <span className="text-white font-semibold">{unit.timesPlayed}</span> times
-                  </p>
-                  <p className="text-gray-400">
-                    Avg Place: <span className="text-white font-semibold">{unit.averagePlacement.toFixed(1)}</span>
-                  </p>
-                </div>
+        <section className="space-y-8">
+          <h2 className="text-3xl font-bold text-tft-purple">Your Favorite Champions</h2>
+          {Object.entries(
+            stats.playstyle.favoriteUnits.reduce((acc, unit) => {
+              // Extract set number from unitId (e.g., "TFT15_Udyr.TFT_Set15" -> "15")
+              const setMatch = unit.unitId.match(/TFT(\d+)_/)
+              const setNumber = setMatch ? setMatch[1] : 'Unknown'
+              const setKey = `Set ${setNumber}`
+
+              if (!acc[setKey]) {
+                acc[setKey] = []
+              }
+              acc[setKey].push(unit)
+              return acc
+            }, {} as Record<string, typeof stats.playstyle.favoriteUnits>)
+          )
+          .sort(([a], [b]) => b.localeCompare(a)) // Sort sets in descending order (newest first)
+          .map(([setName, units]) => (
+            <div key={setName} className="bg-white/5 rounded-xl p-8 border border-white/10">
+              <h3 className="text-2xl font-bold mb-4 text-tft-lightBlue">{setName} - Top 5</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {units.map((unit, index) => (
+                  <div
+                    key={unit.unitId}
+                    className="bg-white/5 rounded-lg p-4 border border-white/10 hover:border-tft-purple/50 transition-all"
+                  >
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-lg border-2 border-tft-purple/30">
+                        <div className="absolute -left-16 top-0 w-32 h-16">
+                          <Image
+                            src={getTftChampionImage(unit.unitId)}
+                            alt={unit.name}
+                            width={128}
+                            height={64}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <h3 className="text-lg font-semibold">{unit.name}</h3>
+                          <span className="text-tft-gold text-sm font-bold">
+                            #{index + 1}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-gray-400">
+                        Unit ID: <span className="text-white font-semibold font-mono text-xs">{unit.unitId}</span>
+                      </p>
+                      <p className="text-gray-400">
+                        Played: <span className="text-white font-semibold">{unit.timesPlayed}</span> times
+                      </p>
+                      <p className="text-gray-400">
+                        Avg Place: <span className="text-white font-semibold">{unit.averagePlacement.toFixed(1)}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </section>
 
         {/* Favorite Items */}
