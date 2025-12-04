@@ -110,10 +110,6 @@ export function aggregateYearlyStats(
     .sort((a, b) => b.timesUsed - a.timesUsed)
     .slice(0, 5)
 
-  // Determine economy style based on gold left
-  const avgGoldLeft = playerMatches.reduce((sum, m) => sum + m.participant.gold_left, 0) / totalGames
-  const economyStyle = avgGoldLeft > 15 ? 'Greedy' : avgGoldLeft > 5 ? 'Balanced' : 'Aggressive'
-
   // Find most played set
   const setCounts = new Map<number, number>()
   playerMatches.forEach(({ match }) => {
@@ -172,7 +168,6 @@ export function aggregateYearlyStats(
       favoriteUnits,
       favoriteTraits,
       favoriteItems,
-      economyStyle,
     },
     achievements: [],
   }

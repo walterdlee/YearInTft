@@ -5,6 +5,7 @@ import { useEffect, useState, Suspense } from 'react'
 import Image from 'next/image'
 import type { YearlyStats } from '@/types/stats'
 import FavoriteItems from '@/components/wrapped/FavoriteItems'
+import ChristmasTreeGraphic from '@/components/wrapped/ChristmasTreeGraphic'
 import { getTftChampionImage } from '@/lib/dataDragon'
 
 function WrappedContent() {
@@ -134,10 +135,6 @@ function WrappedContent() {
           <h2 className="text-3xl font-bold mb-6 text-tft-lightBlue">Your Playstyle</h2>
           <div className="space-y-4">
             <div>
-              <p className="text-gray-400">Economy Style</p>
-              <p className="text-xl font-semibold">{stats.playstyle.economyStyle}</p>
-            </div>
-            <div>
               <p className="text-gray-400">Average Game Length</p>
               <p className="text-xl font-semibold">{stats.playstyle.averageGameLength} minutes</p>
             </div>
@@ -213,6 +210,9 @@ function WrappedContent() {
 
         {/* Favorite Items */}
         <FavoriteItems items={stats.playstyle.favoriteItems} />
+
+        {/* Christmas Tree Graphic */}
+        <ChristmasTreeGraphic stats={stats} />
 
         {/* Footer */}
         <div className="text-center pt-8">

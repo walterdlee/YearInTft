@@ -56,7 +56,6 @@ export interface PlaystyleStats {
   favoriteUnits: UnitStats[];
   favoriteTraits: TraitStats[];
   favoriteItems: ItemStats[];
-  economyStyle: 'Aggressive' | 'Balanced' | 'Greedy';
 }
 
 export interface UnitStats {
