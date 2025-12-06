@@ -64,56 +64,48 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
       return
     }
 
-    try {
-      // Create a File object from the blob
-      const file = new File([blob], `${stats.summoner.name}-year-in-tft-2025.png`, {
-        type: 'image/png',
-        lastModified: Date.now(),
-      })
+    // Create a File object from the blob
+    const file = new File([blob], 'year-in-tft.png', {
+      type: 'image/png',
+    })
 
-      // Try to use Web Share API on mobile
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'My Year in TFT 2025',
-            text: `Check out my Year in TFT 2025! 🎄`,
-          })
-          return // Success - share sheet was shown and user shared or cancelled
-        } catch (shareError) {
-          // If user cancelled, don't show error or download
-          if (shareError instanceof Error && shareError.name === 'AbortError') {
-            return
-          }
-          // If share failed for other reasons, fall through to download
-          console.error('Share failed, falling back to download:', shareError)
+    // Try to use Web Share API
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          files: [file],
+        })
+        return // Success!
+      } catch (error) {
+        // If user cancelled, just return silently
+        if (error instanceof Error && error.name === 'AbortError') {
+          return
         }
+        // Log other errors but continue to fallback
+        console.error('Share error:', error)
       }
-
-      // Fallback: download the image
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.download = `${stats.summoner.name}-year-in-tft-2025.png`
-      link.href = url
-      link.click()
-      URL.revokeObjectURL(url)
-
-      // Show instructions
-      setTimeout(() => {
-        alert(
-          'Image saved to Downloads!\n\n' +
-          'To share on Instagram Stories:\n\n' +
-          '1. Open Instagram app\n' +
-          '2. Tap your profile picture or + to create a Story\n' +
-          '3. Tap the gallery icon\n' +
-          '4. Select the image you just downloaded\n' +
-          '5. Share your Year in TFT! 🎄'
-        )
-      }, 500)
-    } catch (error) {
-      console.error('Failed to share:', error)
-      alert('Failed to generate or share the image. Please try again.')
     }
+
+    // Fallback: download the image
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.download = `${stats.summoner.name}-year-in-tft-2025.png`
+    link.href = url
+    link.click()
+    URL.revokeObjectURL(url)
+
+    // Show instructions
+    setTimeout(() => {
+      alert(
+        'Image saved to Downloads!\n\n' +
+        'To share on Instagram Stories:\n\n' +
+        '1. Open Instagram app\n' +
+        '2. Tap your profile picture or + to create a Story\n' +
+        '3. Tap the gallery icon\n' +
+        '4. Select the image you just downloaded\n' +
+        '5. Share your Year in TFT! 🎄'
+      )
+    }, 500)
   }
 
   return (
