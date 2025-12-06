@@ -71,8 +71,8 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
         lastModified: Date.now(),
       })
 
-      // Try to use Web Share API (only works on HTTPS or localhost)
-      if (navigator.share && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      // Try to use Web Share API on mobile
+      if (navigator.share) {
         try {
           await navigator.share({
             files: [file],
