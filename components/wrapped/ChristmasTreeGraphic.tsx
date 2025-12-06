@@ -91,14 +91,33 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
 
           {/* Peak Rank Star at top of tree */}
           <div className="absolute top-44 left-1/2 -translate-x-1/2 z-20">
-            <div className="relative w-24 h-24">
+            <div
+              className="relative w-24 h-24"
+              style={{
+                animation: 'starGlow 2s ease-in-out infinite',
+                filter: 'drop-shadow(0 0 30px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 215, 0, 0.4))',
+              }}
+            >
               {/* Platinum Rank Icon */}
               <img
                 src="https://ddragon.leagueoflegends.com/cdn/15.23.1/img/tft-regalia/TFT_Regalia_Platinum.png"
                 alt="Platinum Rank"
-                className="w-full h-full object-contain drop-shadow-lg"
+                className="w-full h-full object-contain"
                 crossOrigin="anonymous"
               />
+              {/* Star rays */}
+              <div className="absolute inset-0 opacity-50">
+                {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+                  <div
+                    key={angle}
+                    className="absolute top-1/2 left-1/2 w-1 h-12 bg-gradient-to-t from-transparent to-yellow-300"
+                    style={{
+                      transform: `translate(-50%, -100%) rotate(${angle}deg)`,
+                      transformOrigin: 'bottom center',
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -106,49 +125,114 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
           <div className="absolute top-60 left-1/2 -translate-x-1/2">
             {/* Tree sections - creating a simple triangle tree with 3 layers */}
             <div className="relative">
-              {/* Top triangle */}
+              {/* Top triangle with gradient and shadow */}
               <div
-                className="absolute left-1/2 -translate-x-1/2"
+                className="absolute left-1/2 -translate-x-1/2 drop-shadow-2xl"
                 style={{
                   width: 0,
                   height: 0,
                   borderLeft: '80px solid transparent',
                   borderRight: '80px solid transparent',
                   borderBottom: '120px solid #2d5016',
+                  filter: 'drop-shadow(0 0 20px rgba(45, 80, 22, 0.5))',
+                }}
+              />
+              {/* Top triangle highlight */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 opacity-30"
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: '75px solid transparent',
+                  borderRight: '75px solid transparent',
+                  borderBottom: '110px solid #4d9625',
                 }}
               />
 
-              {/* Middle triangle */}
+              {/* Middle triangle with gradient and shadow */}
               <div
-                className="absolute left-1/2 -translate-x-1/2 top-20"
+                className="absolute left-1/2 -translate-x-1/2 top-20 drop-shadow-2xl"
                 style={{
                   width: 0,
                   height: 0,
                   borderLeft: '110px solid transparent',
                   borderRight: '110px solid transparent',
                   borderBottom: '140px solid #3d6b1f',
+                  filter: 'drop-shadow(0 0 20px rgba(61, 107, 31, 0.5))',
+                }}
+              />
+              {/* Middle triangle highlight */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 top-20 opacity-30"
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: '105px solid transparent',
+                  borderRight: '105px solid transparent',
+                  borderBottom: '130px solid #5db630',
                 }}
               />
 
-              {/* Bottom triangle */}
+              {/* Bottom triangle with gradient and shadow */}
               <div
-                className="absolute left-1/2 -translate-x-1/2 top-40"
+                className="absolute left-1/2 -translate-x-1/2 top-40 drop-shadow-2xl"
                 style={{
                   width: 0,
                   height: 0,
                   borderLeft: '140px solid transparent',
                   borderRight: '140px solid transparent',
                   borderBottom: '160px solid #4d7f2a',
+                  filter: 'drop-shadow(0 0 20px rgba(77, 127, 42, 0.5))',
+                }}
+              />
+              {/* Bottom triangle highlight */}
+              <div
+                className="absolute left-1/2 -translate-x-1/2 top-40 opacity-30"
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: '135px solid transparent',
+                  borderRight: '135px solid transparent',
+                  borderBottom: '150px solid #6dd435',
                 }}
               />
 
-              {/* Tree trunk */}
+              {/* Twinkling lights scattered on tree */}
+              {[
+                { top: '40px', left: '-30px', color: '#ffd700', delay: '0s' },
+                { top: '60px', left: '35px', color: '#ff6b6b', delay: '0.5s' },
+                { top: '100px', left: '-50px', color: '#4ecdc4', delay: '1s' },
+                { top: '120px', left: '25px', color: '#ffd700', delay: '1.5s' },
+                { top: '180px', left: '-70px', color: '#ff6b6b', delay: '2s' },
+                { top: '200px', left: '55px', color: '#4ecdc4', delay: '0.3s' },
+                { top: '240px', left: '-45px', color: '#ffd700', delay: '0.8s' },
+                { top: '260px', left: '70px', color: '#ff6b6b', delay: '1.3s' },
+                { top: '300px', left: '-90px', color: '#4ecdc4', delay: '1.8s' },
+                { top: '320px', left: '40px', color: '#ffd700', delay: '2.3s' },
+              ].map((light, i) => (
+                <div
+                  key={`light-${i}`}
+                  className="absolute w-3 h-3 rounded-full"
+                  style={{
+                    top: light.top,
+                    left: light.left,
+                    backgroundColor: light.color,
+                    boxShadow: `0 0 10px ${light.color}, 0 0 20px ${light.color}`,
+                    animation: `twinkle 2s ease-in-out infinite`,
+                    animationDelay: light.delay,
+                  }}
+                />
+              ))}
+
+              {/* Tree trunk with gradient */}
               <div
-                className="absolute left-1/2 -translate-x-1/2 bg-[#6b4423] rounded"
+                className="absolute left-1/2 -translate-x-1/2 rounded shadow-xl"
                 style={{
                   width: '40px',
                   height: '60px',
                   top: '340px',
+                  background: 'linear-gradient(to right, #5a3822, #6b4423, #5a3822)',
+                  boxShadow: '0 4px 10px rgba(0, 0, 0, 0.5)',
                 }}
               />
 
@@ -162,10 +246,19 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
                 return (
                   <div
                     key={champion.unitId}
-                    className="absolute"
-                    style={positions[index]}
+                    className="absolute animate-pulse"
+                    style={{
+                      ...positions[index],
+                      animation: 'ornamentGlow 3s ease-in-out infinite',
+                      animationDelay: `${index * 0.5}s`,
+                    }}
                   >
-                    <div className="relative w-14 h-14 rounded-full border-4 border-tft-gold bg-white/10 backdrop-blur overflow-hidden shadow-lg">
+                    <div
+                      className="relative w-14 h-14 rounded-full border-4 border-tft-gold bg-gradient-to-br from-amber-500/20 to-yellow-900/20 backdrop-blur overflow-hidden"
+                      style={{
+                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.3), inset 0 2px 10px rgba(255, 255, 255, 0.3)',
+                      }}
+                    >
                       <div className="absolute -left-14 top-0 w-28 h-14">
                         <img
                           src={getTftChampionImage(champion.unitId)}
@@ -174,6 +267,8 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
                           crossOrigin="anonymous"
                         />
                       </div>
+                      {/* Ornament shine */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent rounded-full" />
                     </div>
                   </div>
                 )
@@ -190,15 +285,26 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
                   <div
                     key={item.itemName}
                     className="absolute"
-                    style={positions[index]}
+                    style={{
+                      ...positions[index],
+                      animation: 'ornamentGlow 3s ease-in-out infinite',
+                      animationDelay: `${index * 0.7 + 0.3}s`,
+                    }}
                   >
-                    <div className="relative w-12 h-12 rounded-full border-4 border-tft-lightBlue bg-white/10 backdrop-blur overflow-hidden shadow-lg">
+                    <div
+                      className="relative w-12 h-12 rounded-full border-4 border-tft-lightBlue bg-gradient-to-br from-cyan-500/20 to-blue-900/20 backdrop-blur overflow-hidden"
+                      style={{
+                        boxShadow: '0 0 20px rgba(78, 205, 196, 0.6), 0 0 40px rgba(78, 205, 196, 0.3), inset 0 2px 10px rgba(255, 255, 255, 0.3)',
+                      }}
+                    >
                       <img
                         src={getTftItemImage(item.itemName)}
                         alt={item.itemName}
                         className="w-full h-full object-cover"
                         crossOrigin="anonymous"
                       />
+                      {/* Ornament shine */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent rounded-full" />
                     </div>
                   </div>
                 )
@@ -227,19 +333,29 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
           </div>
 
           {/* Decorative snow/particles */}
-          <div className="absolute inset-0 pointer-events-none">
-            {[...Array(20)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-2 h-2 bg-white/30 rounded-full"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-                  animationDelay: `${Math.random() * 2}s`,
-                }}
-              />
-            ))}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {[...Array(30)].map((_, i) => {
+              const size = Math.random() * 4 + 2
+              const left = Math.random() * 100
+              const animationDuration = Math.random() * 3 + 2
+              const delay = Math.random() * 5
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    left: `${left}%`,
+                    top: '-5%',
+                    background: 'radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.4) 100%)',
+                    boxShadow: '0 0 6px rgba(255, 255, 255, 0.8)',
+                    animation: `snowfall ${animationDuration}s linear infinite, float ${3 + Math.random() * 2}s ease-in-out infinite`,
+                    animationDelay: `${delay}s, ${delay}s`,
+                  }}
+                />
+              )
+            })}
           </div>
         </div>
       </div>
@@ -270,6 +386,46 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
           }
           50% {
             transform: translateY(-20px);
+          }
+        }
+
+        @keyframes snowfall {
+          0% {
+            transform: translateY(-5%) translateX(0);
+          }
+          100% {
+            transform: translateY(105%) translateX(50px);
+          }
+        }
+
+        @keyframes twinkle {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.3;
+            transform: scale(0.8);
+          }
+        }
+
+        @keyframes ornamentGlow {
+          0%, 100% {
+            transform: scale(1);
+            filter: brightness(1);
+          }
+          50% {
+            transform: scale(1.05);
+            filter: brightness(1.2);
+          }
+        }
+
+        @keyframes starGlow {
+          0%, 100% {
+            transform: rotate(0deg) scale(1);
+          }
+          50% {
+            transform: rotate(5deg) scale(1.1);
           }
         }
       `}</style>
