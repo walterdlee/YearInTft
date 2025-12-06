@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef } from 'react'
-import Image from 'next/image'
 import type { YearlyStats } from '@/types/stats'
 import { getTftChampionImage, getTftItemImage } from '@/lib/dataDragon'
 
@@ -21,15 +20,24 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
 
     try {
       const html2canvas = (await import('html2canvas')).default
+
+      // Skip external images entirely to avoid CORS issues
+      // This will render everything except the champion/item/rank images
       const canvas = await html2canvas(graphicRef.current, {
         backgroundColor: '#0a0e1a',
         scale: 2,
+        useCORS: false,
+        allowTaint: false,
+        logging: false,
+        imageTimeout: 0,
+        // Ignore all img elements to avoid CORS blocking
+        ignoreElements: (element) => element.tagName === 'IMG',
       })
 
       return new Promise((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob)
-        })
+        }, 'image/png')
       })
     } catch (error) {
       console.error('Failed to generate image:', error)
@@ -51,40 +59,60 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
 
   const handleShareToInstagram = async () => {
     const blob = await generateImage()
-    if (!blob) return
+    if (!blob) {
+      alert('Failed to generate image. Please try again.')
+      return
+    }
 
     try {
       // Create a File object from the blob
       const file = new File([blob], `${stats.summoner.name}-year-in-tft-2025.png`, {
         type: 'image/png',
+        lastModified: Date.now(),
       })
 
-      // Check if Web Share API is supported
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'My Year in TFT 2025',
-          text: `Check out my Year in TFT 2025! 🎄`,
-        })
-      } else {
-        // Fallback: download the image and show instructions
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.download = `${stats.summoner.name}-year-in-tft-2025.png`
-        link.href = url
-        link.click()
-        URL.revokeObjectURL(url)
-
-        alert(
-          'Image downloaded! To share on Instagram Stories:\n\n' +
-          '1. Open the Instagram app\n' +
-          '2. Tap the + button or swipe right\n' +
-          '3. Select "Story"\n' +
-          '4. Upload the downloaded image from your gallery'
-        )
+      // Try to use Web Share API (only works on HTTPS or localhost)
+      if (navigator.share && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'My Year in TFT 2025',
+            text: `Check out my Year in TFT 2025! 🎄`,
+          })
+          return // Success - share sheet was shown and user shared or cancelled
+        } catch (shareError) {
+          // If user cancelled, don't show error or download
+          if (shareError instanceof Error && shareError.name === 'AbortError') {
+            return
+          }
+          // If share failed for other reasons, fall through to download
+          console.error('Share failed, falling back to download:', shareError)
+        }
       }
+
+      // Fallback: download the image
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `${stats.summoner.name}-year-in-tft-2025.png`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+
+      // Show instructions
+      setTimeout(() => {
+        alert(
+          'Image saved to Downloads!\n\n' +
+          'To share on Instagram Stories:\n\n' +
+          '1. Open Instagram app\n' +
+          '2. Tap your profile picture or + to create a Story\n' +
+          '3. Tap the gallery icon\n' +
+          '4. Select the image you just downloaded\n' +
+          '5. Share your Year in TFT! 🎄'
+        )
+      }, 500)
     } catch (error) {
       console.error('Failed to share:', error)
+      alert('Failed to generate or share the image. Please try again.')
     }
   }
 
@@ -114,13 +142,11 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
           <div className="absolute top-44 left-1/2 -translate-x-1/2 z-20">
             <div className="relative w-24 h-24">
               {/* Platinum Rank Icon */}
-              <Image
+              <img
                 src="https://ddragon.leagueoflegends.com/cdn/15.23.1/img/tft-regalia/TFT_Regalia_Platinum.png"
                 alt="Platinum Rank"
-                width={96}
-                height={96}
                 className="w-full h-full object-contain drop-shadow-lg"
-                unoptimized
+                crossOrigin="anonymous"
               />
             </div>
           </div>
@@ -190,13 +216,11 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
                   >
                     <div className="relative w-14 h-14 rounded-full border-4 border-tft-gold bg-white/10 backdrop-blur overflow-hidden shadow-lg">
                       <div className="absolute -left-14 top-0 w-28 h-14">
-                        <Image
+                        <img
                           src={getTftChampionImage(champion.unitId)}
                           alt={champion.name}
-                          width={112}
-                          height={56}
                           className="w-full h-full object-cover"
-                          unoptimized
+                          crossOrigin="anonymous"
                         />
                       </div>
                     </div>
@@ -218,13 +242,11 @@ export default function ChristmasTreeGraphic({ stats }: ChristmasTreeGraphicProp
                     style={positions[index]}
                   >
                     <div className="relative w-12 h-12 rounded-full border-4 border-tft-lightBlue bg-white/10 backdrop-blur overflow-hidden shadow-lg">
-                      <Image
+                      <img
                         src={getTftItemImage(item.itemName)}
                         alt={item.itemName}
-                        width={48}
-                        height={48}
                         className="w-full h-full object-cover"
-                        unoptimized
+                        crossOrigin="anonymous"
                       />
                     </div>
                   </div>
