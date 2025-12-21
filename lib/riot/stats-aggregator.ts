@@ -45,7 +45,7 @@ export function aggregateYearlyStats(
 
     // Count units for this set
     participant.units.forEach(unit => {
-      const existing = unitCounts.get(unit.character_id) || { count: 0, placements: [], items: new Map() }
+      const existing = unitCounts.get(unit.character_id) || { count: 0, placements: [] as number[], items: new Map() }
       existing.count++
       existing.placements.push(participant.placement)
 
@@ -88,7 +88,7 @@ export function aggregateYearlyStats(
   const traitCounts = new Map<string, { count: number; placements: number[] }>()
   playerMatches.forEach(({ participant }) => {
     participant.traits.filter(t => t.style > 0).forEach(trait => {
-      const existing = traitCounts.get(trait.name) || { count: 0, placements: [] }
+      const existing = traitCounts.get(trait.name) || { count: 0, placements: [] as number[] }
       existing.count++
       existing.placements.push(participant.placement)
       traitCounts.set(trait.name, existing)
@@ -110,7 +110,7 @@ export function aggregateYearlyStats(
   playerMatches.forEach(({ participant }) => {
     participant.units.forEach(unit => {
       unit.itemNames.forEach(itemName => {
-        const existing = itemCounts.get(itemName) || { count: 0, placements: [] }
+        const existing = itemCounts.get(itemName) || { count: 0, placements: [] as number[] }
         existing.count++
         existing.placements.push(participant.placement)
         itemCounts.set(itemName, existing)
