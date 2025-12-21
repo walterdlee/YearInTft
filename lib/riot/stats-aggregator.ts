@@ -32,7 +32,7 @@ export function aggregateYearlyStats(
   const rankedTop4Count = rankedPlacements.filter(p => p <= 4).length
 
   // Aggregate unit stats grouped by set using match.info.tft_set_number
-  const unitCountsBySet = new Map<string, Map<string, { count: number; placements: number[] }>>()
+  const unitCountsBySet = new Map<string, Map<string, { count: number; placements: number[]; items: Map<string, number> }>>()
 
   playerMatches.forEach(({ match, participant }) => {
     const setNumber = match.info.tft_set_number.toString()
@@ -45,9 +45,16 @@ export function aggregateYearlyStats(
 
     // Count units for this set
     participant.units.forEach(unit => {
-      const existing = unitCounts.get(unit.character_id) || { count: 0, placements: [] }
+      const existing = unitCounts.get(unit.character_id) || { count: 0, placements: [], items: new Map() }
       existing.count++
       existing.placements.push(participant.placement)
+
+      // Track items used with this unit
+      unit.itemNames.forEach(itemName => {
+        const itemCount = existing.items.get(itemName) || 0
+        existing.items.set(itemName, itemCount + 1)
+      })
+
       unitCounts.set(unit.character_id, existing)
     })
   })
@@ -56,12 +63,22 @@ export function aggregateYearlyStats(
   const favoriteUnits: UnitStats[] = Array.from(unitCountsBySet.entries())
     .flatMap(([setNumber, unitCounts]) => {
       return Array.from(unitCounts.entries())
-        .map(([unitId, data]) => ({
-          unitId,
-          name: unitId.split('_').pop() || unitId,
-          timesPlayed: data.count,
-          averagePlacement: data.placements.reduce((a, b) => a + b, 0) / data.placements.length,
-        }))
+        .map(([unitId, data]) => {
+          // Find the most used item with this unit
+          let favoriteItem: string | undefined
+          if (data.items.size > 0) {
+            const sortedItems = Array.from(data.items.entries()).sort((a, b) => b[1] - a[1])
+            favoriteItem = sortedItems[0][0]
+          }
+
+          return {
+            unitId,
+            name: unitId.split('_').pop() || unitId,
+            timesPlayed: data.count,
+            averagePlacement: data.placements.reduce((a, b) => a + b, 0) / data.placements.length,
+            favoriteItem,
+          }
+        })
         .sort((a, b) => b.timesPlayed - a.timesPlayed)
         .slice(0, 5)
     })
@@ -118,6 +135,34 @@ export function aggregateYearlyStats(
   })
   const mostPlayedSet = Array.from(setCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 0
 
+  // Track little legend (companion) usage by item_ID
+  const companionCounts = new Map<number, { species: string; count: number }>()
+  playerMatches.forEach(({ participant }) => {
+    if (participant.companion && participant.companion.item_ID) {
+      const itemId = participant.companion.item_ID
+      const existing = companionCounts.get(itemId) || { species: participant.companion.species, count: 0 }
+      existing.count++
+      companionCounts.set(itemId, existing)
+
+      // Debug logging
+      if (companionCounts.size <= 3) {
+        console.log('Companion item_ID:', itemId, 'species:', participant.companion.species)
+      }
+    }
+  })
+
+  // Find the most used little legend
+  let favoriteLittleLegend: { tacticianId: number; species: string; timesUsed: number } | undefined
+  if (companionCounts.size > 0) {
+    const sortedCompanions = Array.from(companionCounts.entries()).sort((a, b) => b[1].count - a[1].count)
+    const [tacticianId, data] = sortedCompanions[0]
+    favoriteLittleLegend = {
+      tacticianId,
+      species: data.species,
+      timesUsed: data.count,
+    }
+  }
+
   // Extract TFT ranked data from league entries
   const tftRankedEntry = leagueEntries.find(entry => entry.queueType === 'RANKED_TFT')
 
@@ -168,6 +213,7 @@ export function aggregateYearlyStats(
       favoriteUnits,
       favoriteTraits,
       favoriteItems,
+      favoriteLittleLegend,
     },
     achievements: [],
   }

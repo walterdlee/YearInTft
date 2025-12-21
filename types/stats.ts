@@ -56,6 +56,11 @@ export interface PlaystyleStats {
   favoriteUnits: UnitStats[];
   favoriteTraits: TraitStats[];
   favoriteItems: ItemStats[];
+  favoriteLittleLegend?: {
+    tacticianId: number;
+    species: string;
+    timesUsed: number;
+  };
 }
 
 export interface UnitStats {
@@ -63,6 +68,7 @@ export interface UnitStats {
   name: string;
   timesPlayed: number;
   averagePlacement: number;
+  favoriteItem?: string;
 }
 
 export interface TraitStats {

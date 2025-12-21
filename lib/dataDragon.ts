@@ -47,10 +47,42 @@ export async function fetchTftItemData(): Promise<Record<string, { name: string 
 }
 
 /**
+ * Fetch TFT tactician (little legend) data from Data Dragon
+ * @returns Promise containing tactician data
+ */
+export async function fetchTftTacticianData(): Promise<Record<string, { name: string; image: { full: string } }>> {
+  const response = await fetch(
+    `${DDRAGON_BASE_URL}/${DDRAGON_VERSION}/data/en_US/tft-tactician.json`
+  );
+  const data = await response.json();
+  return data.data;
+}
+
+/**
  * Get the URL for a TFT trait image
  * @param traitId - The trait ID
  * @returns The full CDN URL for the trait image
  */
 export function getTftTraitImage(traitId: string): string {
   return `${DDRAGON_BASE_URL}/${DDRAGON_VERSION}/img/tft-trait/${traitId}.png`;
+}
+
+/**
+ * Get the URL for a TFT ranked tier regalia image
+ * @param tier - The rank tier (e.g., "IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER")
+ * @returns The full CDN URL for the TFT rank regalia image
+ */
+export function getRankEmblemImage(tier: string): string {
+  // Capitalize first letter, rest lowercase for the TFT Regalia format
+  const tierFormatted = tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
+  return `${DDRAGON_BASE_URL}/${DDRAGON_VERSION}/img/tft-regalia/TFT_Regalia_${tierFormatted}.png`;
+}
+
+/**
+ * Get the URL for a TFT little legend (companion) image
+ * @param contentId - The companion content ID from the match data
+ * @returns The full CDN URL for the companion image
+ */
+export function getLittleLegendImage(contentId: string): string {
+  return `${DDRAGON_BASE_URL}/${DDRAGON_VERSION}/img/tft-companion/${contentId}.png`;
 }

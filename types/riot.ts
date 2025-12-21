@@ -44,6 +44,7 @@ export interface Participant {
 
 export interface Companion {
   content_ID: string;
+  item_ID: number;
   skin_ID: number;
   species: string;
 }
